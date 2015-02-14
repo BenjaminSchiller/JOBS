@@ -94,7 +94,7 @@ Most importantly, the number of jobs that JOBS should execute concurrently is sp
 
 
 
-## Script (jobs.sh)
+## Script (jobs.sh) and Commands
 
 JOBS is implemented in a single file to make deployment and execution simply.
 Each command is executed as follows:
@@ -106,20 +106,26 @@ It is followed by command-specific parameters.
 
 From the **client** side, the following commands are available:
 
-+ deploy
-+ status
-+ archive
-+ info
-+ list
-+ log
-+ create
-+ trash
++ Deployment
+	+ deploy
++ Job Maintenance
+	+ create
+	+ archive
+	+ trash
++ Job Starting
+	+ start
+	+ execute
++ Getting Info
+	+ status
+	+ list
+	+ info
+	+ log
 
 The commands as they are described here are all meant to be executed from the client.
 Each command *$command* is then translated into a command *${command}Server* which is executed on the server passing the parameters accordingly.
 
 
-### Command: deploy
+### Deployment: deploy
 
 	> jobs.sh deploy
 
@@ -130,7 +136,70 @@ The destination directors *$server_dir* is also created in case it does not exis
 This command can also be used to update, e.g., the config file.
 
 
-### Command: status
+### Maintenance: create
+
+	> jobs.sh create $task
+
+The *create* command created a *new* job as specified by the task parameter.
+Creating a job means to simply determine its id (as the current timestamp in nanoseconds) and create a file containing the task in the directory there new jobs are stored.
+
+	> ./jobs.sh create ./myTask.sh
+	created job '1423911119834276775' --> ./myTask.sh
+
+Make sure to properly quote composite commands so that they can be processed correctly, e.g.,
+
+	> ./jobs.sh create 'cd myDir; ./myTask.sh'
+	created job '1423911119834276775' --> cd myDir; ./myTask.sh
+
+
+### Maintenance: archive
+
+	> jobs.sh archive
+
+This command moves all done jobs to the archive.
+This does not have any influence the execution of the systems as the jobs are not considered any more anyways.
+This command is usefull in case logs or error messages are of interest (e.g., usong the log command) but old jobs are not of interest and should be excluded from the lists and results.
+
+
+### Maintenance: trash
+
+	> jobs.sh trash
+
+The *trash* command is used to delete all *new* jobs.
+Its execution simply deletes all jobs from the new directory.
+
+	> ./jobs.sh trash
+	trashed 20 new jobs
+
+It is usefull in case some jobs have been created by accident and that should not be executed.
+
+
+### Job Starting: start
+
+	> jobs.sh start
+
+The *start* command start a new 'round' of execution.
+It checks how many tasks are currently running.
+In case less tasks are running than the maximum specified in the config file (i.e., *$concurrent_jobs*) new jobs are started (using the *startServer* command) until no new jobs are available or the maximum number of concurrently running jobs is reached.
+
+It is recommend to simply create a cron job to execute this *start* command regularly, e.g., every minute.
+An example of a crontab entry for starting it every minute would lokk like this:
+
+	* * * * * cd ~/theJobsDir; ./jobs.sh startServer
+
+Similar to the *execute* command, it can be executed from the client (*start*) but starting a round from the server is commonly the way to go (*startServer*).
+
+
+### Job Starting: execute
+
+	> jobs.sh execute $task_id
+
+The *execute* command starts the execution of the job specified by the id given as parameter.
+While *execute* can be executed from the client, it is mainly used by the *start* command to start new jobs.
+Note that it is not sent to the background by itself, hence executing this command from the client blocks until the job is finished.
+
+
+### Getting Info: status
 
 	> jobs.sh status
 
@@ -147,16 +216,7 @@ The execution of 6 jobs has been finished, for 1 of them the error output was no
 	archive: 44 (3)
 
 
-### Command: archive
-
-	> jobs.sh archive
-
-This command moves all done jobs to the archive.
-This does not have any influence the execution of the systems as the jobs are not considered any more anyways.
-This command is usefull in case logs or error messages are of interest (e.g., usong the log command) but old jobs are not of interest and should be excluded from the lists and results.
-
-
-### Command: list
+### Getting Info: list
 
 	> jobs.sh list $type
 	> jobs.sh list (new|running|done|archive)
@@ -181,7 +241,7 @@ Examples are as follows:
 This command only outputs the jobs, log and err files are excluded.
 
 
-### Command: info
+### Getting Info: info
 
 	> jobs.sh info $task_id
 
@@ -223,7 +283,7 @@ Then, a *tail -f* on the log is performed.
 	  ...
 
 
-### Command: log
+### Getting Info: log
 
 	> jobs.sh log $operation $type $file
 	> jobs.sh log (cat|tail|tailf) (new|running|done|archive) (job|log|err)
@@ -243,60 +303,6 @@ While *cat* and *tail* are usefull to get an overview over the contents of the s
 The *type* can be any of the 4 job states (*new*, *running*, *done*, or *archive*).
 
 The *file* parameter can be any of the 3 files available for each job (*job*, *log*, *err*).
-
-
-### Command: create
-
-	> jobs.sh create $task
-
-The *create* command created a *new* job as specified by the task parameter.
-Creating a job means to simply determine its id (as the current timestamp in nanoseconds) and create a file containing the task in the directory there new jobs are stored.
-
-	> ./jobs.sh create ./myTask.sh
-	created job '1423911119834276775' --> ./myTask.sh
-
-Make sure to properly quote composite commands so that they can be processed correctly, e.g.,
-
-	> ./jobs.sh create 'cd myDir; ./myTask.sh'
-	created job '1423911119834276775' --> cd myDir; ./myTask.sh
-
-
-### Command: trash
-
-	> jobs.sh trash
-
-The *trash* command is used to delete all *new* jobs.
-Its execution simply deletes all jobs from the new directory.
-
-	> ./jobs.sh trash
-	trashed 20 new jobs
-
-It is usefull in case some jobs have been created by accident and that should not be executed.
-
-
-### Command: execute
-
-	> jobs.sh execute $task_id
-
-The *execute* command starts the execution of the job specified by the id given as parameter.
-While *execute* can be executed from the client, it is mainly used by the *start* command to start new jobs.
-Note that it is not sent to the background by itself, hence executing this command from the client blocks until the job is finished.
-
-
-### Command: start
-
-	> jobs.sh start
-
-The *start* command start a new 'round' of execution.
-It checks how many tasks are currently running.
-In case less tasks are running than the maximum specified in the config file (i.e., *$concurrent_jobs*) new jobs are started (using the *startServer* command) until no new jobs are available or the maximum number of concurrently running jobs is reached.
-
-It is recommend to simply create a cron job to execute this *start* command regularly, e.g., every minute.
-An example of a crontab entry for starting it every minute would lokk like this:
-
-	* * * * * cd ~/theJobsDir; ./jobs.sh startServer
-
-Similar to the *execute* command, it can be executed from the client (*start*) but starting a round from the server is commonly the way to go (*startServer*).
 
 
 
