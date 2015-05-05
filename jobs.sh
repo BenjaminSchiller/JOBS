@@ -279,13 +279,11 @@ fi
 
 
 if [[ $1 = "start" ]]; then
-	echo "1"
 	ssh $server_name "cd $server_dir; ./jobs.sh startServer"
 	exit
 fi
 
 if [[ $1 = "startServer" ]]; then
-	echo "2"
 	count=$(ls $jobs_dir_running | grep $extension_job | wc -l)
 	echo "$(date) - $count jobs are RUNNING" >> $main_log
 	count=$(ls $jobs_dir_new | grep $extension_job | wc -l)
