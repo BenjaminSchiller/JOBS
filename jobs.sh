@@ -2,7 +2,7 @@
 
 source jobs.cfg
 
-set -e
+# set -e
 
 
 
