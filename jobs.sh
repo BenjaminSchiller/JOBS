@@ -2,7 +2,7 @@
 
 source jobs.cfg
 
-# set -e
+#set -e
 
 
 
@@ -11,6 +11,7 @@ if [[ $1 = "deploy" ]]; then
 	echo "deploy to $server_name:$server_dir"
 	ssh $server_name "if [[ ! -d $server_dir ]]; then mkdir $server_dir; fi; \
 		if [[ ! -d $server_dir/$jobs_dir_new ]]; then mkdir $server_dir/$jobs_dir_new; fi; \
+		if [[ ! -d $server_dir/$jobs_dir_paused ]]; then mkdir $server_dir/$jobs_dir_paused; fi; \
 		if [[ ! -d $server_dir/$jobs_dir_running ]]; then mkdir $server_dir/$jobs_dir_running; fi; \
 		if [[ ! -d $server_dir/$jobs_dir_done ]]; then mkdir $server_dir/$jobs_dir_done; fi; \
 		if [[ ! -d $server_dir/$jobs_dir_archive ]]; then mkdir $server_dir/$jobs_dir_archive; fi"
@@ -29,12 +30,14 @@ fi
 
 if [[ $1 = "statusServer" ]]; then
 	count_new=$(ls $jobs_dir_new | grep $extension_job | wc -l)
+	count_paused=$(ls $jobs_dir_paused | grep $extension_job | wc -l)
 	count_running=$(ls $jobs_dir_running | grep $extension_job | wc -l)
 	count_done=$(ls $jobs_dir_done | grep $extension_job | wc -l)
 	count_done_failed=$(ls $jobs_dir_done | grep $extension_err | wc -l)
 	count_archive=$(ls $jobs_dir_archive | grep $extension_job | wc -l)
 	count_archive_failed=$(ls $jobs_dir_archive | grep $extension_err | wc -l)
 	echo "new:     $count_new"
+	echo "paused:  $count_paused"
 	echo "running: $count_running / $concurrent_jobs"
 	echo "done:    $count_done ($count_done_failed)"
 	echo "archive: $count_archive ($count_archive_failed)"
@@ -57,6 +60,46 @@ if [[ $1 = "archiveServer" ]]; then
 		echo "archived $count_jobs done jobs"
 	else
 		echo "no done jobs to archive"
+	fi
+	exit
+fi
+
+
+
+
+
+if [[ $1 = "pause" ]]; then
+	ssh $server_name "cd $server_dir; ./jobs.sh pauseServer"
+	exit
+fi
+
+if [[ $1 = "pauseServer" ]]; then
+	count_jobs=$(ls $jobs_dir_new | grep $extension_job | wc -l)
+	if [[ $count_jobs > 0 ]]; then
+		mv $jobs_dir_new/* $jobs_dir_paused/
+		echo "paused $count_jobs new jobs"
+	else
+		echo "no new jobs to pause"
+	fi
+	exit
+fi
+
+
+
+
+
+if [[ $1 = "unpause" ]]; then
+	ssh $server_name "cd $server_dir; ./jobs.sh unpauseServer"
+	exit
+fi
+
+if [[ $1 = "unpauseServer" ]]; then
+	count_jobs=$(ls $jobs_dir_paused | grep $extension_job | wc -l)
+	if [[ $count_jobs > 0 ]]; then
+		mv $jobs_dir_paused/* $jobs_dir_new/
+		echo "unpaused $count_jobs paused jobs"
+	else
+		echo "no paused jobs to unpause"
 	fi
 	exit
 fi
@@ -122,13 +165,25 @@ fi
 
 if [[ $1 = "listServer" ]]; then
 	if [[ $2 = "new" ]]; then
-		ls $jobs_dir_new | grep $extension_job
+		# ls $jobs_dir_new | grep $extension_job
+		for job in $(ls $jobs_dir_new | grep $extension_job); do
+			echo "$job -> $(cat $jobs_dir_running/$job)"
+		done
 	elif [[ $2 = "running" ]]; then
-		ls $jobs_dir_running | grep $extension_job
+		# ls $jobs_dir_running | grep $extension_job
+		for job in $(ls $jobs_dir_running | grep $extension_job); do
+			echo "$job -> $(cat $jobs_dir_running/$job)"
+		done
 	elif [[ $2 = "done" ]]; then
-		ls $jobs_dir_done | grep $extension_job
+		# ls $jobs_dir_done | grep $extension_job
+		for job in $(ls $jobs_dir_done | grep $extension_job); do
+			echo "$job -> $(cat $jobs_dir_done/$job)"
+		done
 	elif [[ $2 = "archive" ]]; then
-		ls $jobs_dir_archive | grep $extension_job
+		# ls $jobs_dir_archive | grep $extension_job
+		for job in $(ls $jobs_dir_archive | grep $extension_job); do
+			echo "$job -> $(cat $jobs_dir_archive/$job)"
+		done
 	else
 		echo "invalid job type '$2'"
 		echo "  should be: new, running, done, archive"
