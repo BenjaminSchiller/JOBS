@@ -1,14 +1,19 @@
 # JOBS
 
-JOBS provides a small set of bash scripts that can be used to quickly schedule jobs on any machine that supplies a bash shell.
+JOBS provides a single of bash script (and a config file) that can be used to quickly schedule jobs on any machine that supplies a bash shell.
 
 JOBS executes all created jobs in a FIFO order and guarantees that only the configured number of jobs are executed simultaneously.
-This is helpful in case many processes with potentially different runtimes need to be executed but the machine should not be overloaded BUT the maximum number of available processors should be exhausted.
+Such a scheduling mechanism is required / helpful in case:
+
+1. multiple processes should be executed with different runtimes (so starting them sequentially does not make sense)
+2. only a limited number of processes should be started on the target machine (in order to not overload the machine and to ensure comparability of runtimes)
+3. the maximum nunber of available / assigned processes should actually be used at all times to exploit all resources
+
 
 
 ## Scenario
 
-We assume that there is a server on which jobs should be executed.
+We assume that there is a single server on which jobs should be executed.
 All commands to JOBS can be executed from a remote machine or on the target executing machine itself.
 In the following, we call the machine on which JOBS is running the **server**.
 The machine that issues command to JOBS is called **client**, but of course both can be the same machine.
@@ -18,11 +23,12 @@ The machine that issues command to JOBS is called **client**, but of course both
 
 We consider every task that should be executed as a job.
 When creating a job, we consider it to be *new*.
-While it is executed, it is in the state *running*.
-After the execution is terminated, the jobs has the state *done*.
-Jobs that are done can also be moved to the *archive* which marks the fourth possible state.
+Jobs that have been created but should be exectued later can assume the state *paused*.
+While a job is executed, it is in the state *running*.
+After the execution is terminated (or failed), the jobs has the state *done*.
+Jobs that are done can also be moved to the *archive* to exclude them from certain statistics and lists.
 
-	new --> running --> done [--> archive]
+	new [-> paused] -> running -> done [-> archive]
 
 The jobs of each state are stored in a separate directory.
 For each job, three files are created:
@@ -31,7 +37,7 @@ For each job, three files are created:
 + *.log* - the log output of the execution
 + *.err* - the error output of the execution
 
-Note than in *new*, there are only *.job* files.
+Note than in *new* and *paused*, there are only *.job* files.
 In *running*, all three files (job, log, and err) are present for each job.
 *done* and *archive* contain *.job* and *.log* for all jobs, *.err* is only kept in case the error output was not empty.
 
@@ -76,6 +82,7 @@ Most importantly, the number of jobs that JOBS should execute concurrently is sp
 	### directories without last '/'
 	####################################################
 	jobs_dir_new="jobs.new"
+	jobs_dir_paused="jobs.paused"
 	jobs_dir_running="jobs.running"
 	jobs_dir_done="jobs.done"
 	jobs_dir_archive="jobs.archive"
@@ -110,6 +117,8 @@ From the **client** side, the following commands are available:
 	+ deploy
 + Job Maintenance
 	+ create
+	+ pause
+	+ unpause
 	+ archive
 	+ trash
 + Job Starting
@@ -150,6 +159,30 @@ Make sure to properly quote composite commands so that they can be processed cor
 
 	> ./jobs.sh create 'cd myDir; ./myTask.sh'
 	created job '1423911119834276775' --> cd myDir; ./myTask.sh
+
+
+### Maintenance: pause
+
+	> jobs.sh pause
+
+This command changes the state of all new jobs to be paused.
+This should not be confused with actually pausing running jobs.
+It only means that these new jobs will not be executed next in case processes are free.
+
+Pausing new jobs is usefull in case some intermediate jobs should be executed.
+Since all jobs are executed in FIFO order, it would not be possible to simply move some jobs in between the existing queue of new jobs.
+Hence, the workflow would be to pause all new jobs, create the intermediate ones, and let them be executed.
+After these intermediate jobs are started, the currently paused jobs can be moved back to the new state (unpaused).
+
+
+### Maintenance: unpause
+
+	> jobs.sh unpause
+
+This command unpaused all previoudly paused jobs, i.e., changes their state back to new.
+
+Note that unpausing while there are still new (intermediate) jobs will put the currently new jobs at the end of the queue again (maintain FIFO order).
+Hence, you need to make sure that all intermediate jobs have been started before unpausing the "old" new jobs again.
 
 
 ### Maintenance: archive
