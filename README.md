@@ -23,12 +23,12 @@ The machine that issues command to JOBS is called **client**, but of course both
 
 We consider every task that should be executed as a job.
 When creating a job, we consider it to be *new*.
-Jobs that have been created but should be exectued later can assume the state *paused*.
+Jobs that have been created but should be exectued later can assume the state *stashed*.
 While a job is executed, it is in the state *running*.
 After the execution is terminated (or failed), the jobs has the state *done*.
 Jobs that are done can also be moved to the *archive* to exclude them from certain statistics and lists.
 
-	new [-> paused] -> running -> done [-> archive]
+	new [<-> stashed] -> running -> done [-> archive]
 
 The jobs of each state are stored in a separate directory.
 For each job, three files are created:
@@ -37,7 +37,7 @@ For each job, three files are created:
 + *.log* - the log output of the execution
 + *.err* - the error output of the execution
 
-Note than in *new* and *paused*, there are only *.job* files.
+Note than in *new* and *stashed*, there are only *.job* files.
 In *running*, all three files (job, log, and err) are present for each job.
 *done* and *archive* contain *.job* and *.log* for all jobs, *.err* is only kept in case the error output was not empty.
 
@@ -82,7 +82,7 @@ Most importantly, the number of jobs that JOBS should execute concurrently is sp
 	### directories without last '/'
 	####################################################
 	jobs_dir_new="jobs.new"
-	jobs_dir_paused="jobs.paused"
+	jobs_dir_stashed="jobs.stashed"
 	jobs_dir_running="jobs.running"
 	jobs_dir_done="jobs.done"
 	jobs_dir_archive="jobs.archive"
@@ -117,8 +117,8 @@ From the **client** side, the following commands are available:
 	+ deploy
 + Job Maintenance
 	+ create
-	+ pause
-	+ unpause
+	+ stash
+	+ unstash
 	+ archive
 	+ trash
 + Job Starting
@@ -161,28 +161,28 @@ Make sure to properly quote composite commands so that they can be processed cor
 	created job '1423911119834276775' --> cd myDir; ./myTask.sh
 
 
-### Maintenance: pause
+### Maintenance: stash
 
-	> jobs.sh pause
+	> jobs.sh stash
 
-This command changes the state of all new jobs to be paused.
-This should not be confused with actually pausing running jobs.
+This command changes the state of all new jobs to be stashed.
+This should not be confused with actually stashing running jobs.
 It only means that these new jobs will not be executed next in case processes are free.
 
-Pausing new jobs is usefull in case some intermediate jobs should be executed.
+Stashing new jobs is usefull in case some intermediate jobs should be executed.
 Since all jobs are executed in FIFO order, it would not be possible to simply move some jobs in between the existing queue of new jobs.
-Hence, the workflow would be to pause all new jobs, create the intermediate ones, and let them be executed.
-After these intermediate jobs are started, the currently paused jobs can be moved back to the new state (unpaused).
+Hence, the workflow would be to stash all new jobs, create the intermediate ones, and let them be executed.
+After these intermediate jobs are started, the currently stashed jobs can be moved back to the new state (unstashed).
 
 
-### Maintenance: unpause
+### Maintenance: unstash
 
-	> jobs.sh unpause
+	> jobs.sh unstash
 
-This command unpaused all previoudly paused jobs, i.e., changes their state back to new.
+This command unstashed all previoudly stashed jobs, i.e., changes their state back to new.
 
-Note that unpausing while there are still new (intermediate) jobs will put the currently new jobs at the end of the queue again (maintain FIFO order).
-Hence, you need to make sure that all intermediate jobs have been started before unpausing the "old" new jobs again.
+Note that unstashing while there are still new (intermediate) jobs will put the currently new jobs at the end of the queue again (maintain FIFO order).
+Hence, you need to make sure that all intermediate jobs have been started before unstashing the "old" new jobs again.
 
 
 ### Maintenance: archive

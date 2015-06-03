@@ -2,16 +2,13 @@
 
 source jobs.cfg
 
-#set -e
-
-
 
 
 if [[ $1 = "deploy" ]]; then
 	echo "deploy to $server_name:$server_dir"
 	ssh $server_name "if [[ ! -d $server_dir ]]; then mkdir $server_dir; fi; \
 		if [[ ! -d $server_dir/$jobs_dir_new ]]; then mkdir $server_dir/$jobs_dir_new; fi; \
-		if [[ ! -d $server_dir/$jobs_dir_paused ]]; then mkdir $server_dir/$jobs_dir_paused; fi; \
+		if [[ ! -d $server_dir/$jobs_dir_stashed ]]; then mkdir $server_dir/$jobs_dir_stashed; fi; \
 		if [[ ! -d $server_dir/$jobs_dir_running ]]; then mkdir $server_dir/$jobs_dir_running; fi; \
 		if [[ ! -d $server_dir/$jobs_dir_done ]]; then mkdir $server_dir/$jobs_dir_done; fi; \
 		if [[ ! -d $server_dir/$jobs_dir_archive ]]; then mkdir $server_dir/$jobs_dir_archive; fi"
@@ -23,21 +20,20 @@ fi
 
 
 
-if [[ $1 = "status" ]]; then
+if [[ $1 = "status" ]] || [[ $1 = "st" ]]; then
 	ssh $server_name "cd $server_dir; ./jobs.sh statusServer"
 	exit
 fi
 
 if [[ $1 = "statusServer" ]]; then
 	count_new=$(ls $jobs_dir_new | grep $extension_job | wc -l)
-	count_paused=$(ls $jobs_dir_paused | grep $extension_job | wc -l)
+	count_stashed=$(ls $jobs_dir_stashed | grep $extension_job | wc -l)
 	count_running=$(ls $jobs_dir_running | grep $extension_job | wc -l)
 	count_done=$(ls $jobs_dir_done | grep $extension_job | wc -l)
 	count_done_failed=$(ls $jobs_dir_done | grep $extension_err | wc -l)
 	count_archive=$(ls $jobs_dir_archive | grep $extension_job | wc -l)
 	count_archive_failed=$(ls $jobs_dir_archive | grep $extension_err | wc -l)
-	echo "new:     $count_new"
-	echo "paused:  $count_paused"
+	echo "new:     $count_new ($count_stashed)"
 	echo "running: $count_running / $concurrent_jobs"
 	echo "done:    $count_done ($count_done_failed)"
 	echo "archive: $count_archive ($count_archive_failed)"
@@ -68,18 +64,18 @@ fi
 
 
 
-if [[ $1 = "pause" ]]; then
-	ssh $server_name "cd $server_dir; ./jobs.sh pauseServer"
+if [[ $1 = "stash" ]]; then
+	ssh $server_name "cd $server_dir; ./jobs.sh stashServer"
 	exit
 fi
 
-if [[ $1 = "pauseServer" ]]; then
+if [[ $1 = "stashServer" ]]; then
 	count_jobs=$(ls $jobs_dir_new | grep $extension_job | wc -l)
 	if [[ $count_jobs > 0 ]]; then
-		mv $jobs_dir_new/* $jobs_dir_paused/
-		echo "paused $count_jobs new jobs"
+		mv $jobs_dir_new/* $jobs_dir_stashed/
+		echo "stashed $count_jobs new jobs"
 	else
-		echo "no new jobs to pause"
+		echo "no new jobs to stash"
 	fi
 	exit
 fi
@@ -88,18 +84,18 @@ fi
 
 
 
-if [[ $1 = "unpause" ]]; then
-	ssh $server_name "cd $server_dir; ./jobs.sh unpauseServer"
+if [[ $1 = "unstash" ]]; then
+	ssh $server_name "cd $server_dir; ./jobs.sh unstashServer"
 	exit
 fi
 
-if [[ $1 = "unpauseServer" ]]; then
-	count_jobs=$(ls $jobs_dir_paused | grep $extension_job | wc -l)
+if [[ $1 = "unstashServer" ]]; then
+	count_jobs=$(ls $jobs_dir_stashed | grep $extension_job | wc -l)
 	if [[ $count_jobs > 0 ]]; then
-		mv $jobs_dir_paused/* $jobs_dir_new/
-		echo "unpaused $count_jobs paused jobs"
+		mv $jobs_dir_stashed/* $jobs_dir_new/
+		echo "unstashed $count_jobs stashed jobs"
 	else
-		echo "no paused jobs to unpause"
+		echo "no stashed jobs to unstash"
 	fi
 	exit
 fi
@@ -364,6 +360,58 @@ fi
 
 
 
+if [[ $1 = "help" ]] || [[ $1 = "--help" ]] || [[ $1 = "h" ]] || [[ $1 = "--h" ]]; then
+	if [[ $2 = "deploy" ]] || [[ $2 = "create" ]] || [[ $2 = "stash" ]] || [[ $2 = "unstash" ]] || [[ $2 = "archive" ]] || [[ $2 = "trash" ]] || [[ $2 = "start" ]] || [[ $2 = "execute" ]] || [[ $2 = "status" ]] || [[ $2 = "list" ]] || [[ $2 = "info" ]] || [[ $2 = "log" ]]; then
+		echo "JOBS - usage of command '$2'"
+	fi
+	if   [[ $2 = "deploy" ]]; then
+		echo "  jobs.sh deploy"
+	elif [[ $2 = "create" ]]; then
+		echo "  jobs.sh create \$task"
+	elif [[ $2 = "stash" ]]; then
+		echo "  jobs.sh stash"
+	elif [[ $2 = "unstash" ]]; then
+		echo "  jobs.sh unstash"
+	elif [[ $2 = "archive" ]]; then
+		echo "  jobs.sh archive"
+	elif [[ $2 = "trash" ]]; then
+		echo "  jobs.sh trash"
+	elif [[ $2 = "start" ]]; then
+		echo "  jobs.sh start"
+	elif [[ $2 = "execute" ]]; then
+		echo "  jobs.sh execute \$task_id"
+	elif [[ $2 = "status" ]]; then
+		echo "  jobs.sh status"
+	elif [[ $2 = "list" ]]; then
+		echo "  jobs.sh list \$type"
+		echo "  jobs.sh list (new|running|done|archive)"
+	elif [[ $2 = "info" ]]; then
+		echo "  jobs.sh list \$type"
+		echo "  jobs.sh list (new|running|done|archive)"
+	elif [[ $2 = "log" ]]; then
+		echo "  jobs.sh log \$operation \$type \$file"
+		echo "  jobs.sh log (cat|tail|tailf) (new|running|done|archive) (job|log|err)"
+	else
+		echo "> > > > > > > > > > > > > > > > > > > >"
+		echo "> > > JOBS help"
+		echo "> > > > > > > > > > > > > > > > > > > >"
+		echo "> possible commands are:"
+		echo ">   deployment:      deploy"
+		echo ">   maintenance:     create, stash, unstash, archive, trash"
+		echo ">   starting jobs:   start, execute"
+		echo ">   retrieving info: status, list, info, log"
+		echo "> > > > > > > > > > > > > > > > > > > >"
+		echo "> to show this help:       jobs.sh help"
+		echo "> show help for a command: jobs.sh help \$command"
+		echo "> executing a command:     jobs.sh \$command [\$parameters]"
+		echo "> > > > > > > > > > > > > > > > > > > >"
+	fi
+	exit
+fi
 
-echo "no operation specified"
+
+
+
+echo "Unknown command: '$1'"
+echo "Type './jobs.sh help' for usage."
 exit 1
