@@ -163,7 +163,7 @@ if [[ $1 = "listServer" ]]; then
 	if [[ $2 = "new" ]]; then
 		# ls $jobs_dir_new | grep $extension_job
 		for job in $(ls $jobs_dir_new | grep $extension_job); do
-			echo "$job -> $(cat $jobs_dir_running/$job)"
+			echo "$job -> $(cat $jobs_dir_new/$job)"
 		done
 	elif [[ $2 = "running" ]]; then
 		# ls $jobs_dir_running | grep $extension_job
