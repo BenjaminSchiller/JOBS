@@ -6,12 +6,12 @@ source jobs.cfg
 
 if [[ $1 = "deploy" ]]; then
 	echo "deploy to $server_name:$server_dir"
-	ssh $server_name "if [[ ! -d $server_dir ]]; then mkdir $server_dir; fi; \
-		if [[ ! -d $server_dir/$jobs_dir_new ]]; then mkdir $server_dir/$jobs_dir_new; fi; \
-		if [[ ! -d $server_dir/$jobs_dir_stashed ]]; then mkdir $server_dir/$jobs_dir_stashed; fi; \
-		if [[ ! -d $server_dir/$jobs_dir_running ]]; then mkdir $server_dir/$jobs_dir_running; fi; \
-		if [[ ! -d $server_dir/$jobs_dir_done ]]; then mkdir $server_dir/$jobs_dir_done; fi; \
-		if [[ ! -d $server_dir/$jobs_dir_archive ]]; then mkdir $server_dir/$jobs_dir_archive; fi"
+	ssh $server_name "if [[ ! -d $server_dir ]]; then mkdir -p $server_dir; fi; \
+		if [[ ! -d $server_dir/$jobs_dir_new ]]; then mkdir -p $server_dir/$jobs_dir_new; fi; \
+		if [[ ! -d $server_dir/$jobs_dir_stashed ]]; then mkdir -p $server_dir/$jobs_dir_stashed; fi; \
+		if [[ ! -d $server_dir/$jobs_dir_running ]]; then mkdir -p $server_dir/$jobs_dir_running; fi; \
+		if [[ ! -d $server_dir/$jobs_dir_done ]]; then mkdir -p $server_dir/$jobs_dir_done; fi; \
+		if [[ ! -d $server_dir/$jobs_dir_archive ]]; then mkdir -p $server_dir/$jobs_dir_archive; fi"
 	rsync -auvzl jobs.{cfg,sh} $server_name:$server_dir/
 	echo "done"
 	exit
