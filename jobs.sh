@@ -161,28 +161,39 @@ fi
 
 if [[ $1 = "listServer" ]]; then
 	if [[ $2 = "new" ]]; then
-		# ls $jobs_dir_new | grep $extension_job
 		for job in $(ls $jobs_dir_new | grep $extension_job); do
 			echo "$job -> $(cat $jobs_dir_new/$job)"
 		done
 	elif [[ $2 = "running" ]]; then
-		# ls $jobs_dir_running | grep $extension_job
 		for job in $(ls $jobs_dir_running | grep $extension_job); do
 			echo "$job -> $(cat $jobs_dir_running/$job)"
 		done
 	elif [[ $2 = "done" ]]; then
-		# ls $jobs_dir_done | grep $extension_job
 		for job in $(ls $jobs_dir_done | grep $extension_job); do
 			echo "$job -> $(cat $jobs_dir_done/$job)"
 		done
 	elif [[ $2 = "archive" ]]; then
-		# ls $jobs_dir_archive | grep $extension_job
 		for job in $(ls $jobs_dir_archive | grep $extension_job); do
 			echo "$job -> $(cat $jobs_dir_archive/$job)"
+		done
+	elif [[ $2 = "done_err" ]]; then
+		for err in $(ls $jobs_dir_done | grep $extension_err); do
+			job="${err/$extension_err/$extension_job}"
+			echo "$job -> $(cat $jobs_dir_done/$job)"
+			cat "$jobs_dir_done/$err"
+			echo ""
+		done
+	elif [[ $2 = "archive_err" ]]; then
+		for err in $(ls $jobs_dir_archive | grep $extension_err); do
+			job="${err/$extension_err/$extension_job}"
+			echo "$job -> $(cat $jobs_dir_archive/$job)"
+			cat "$jobs_dir_archive/$err"
+			echo ""
 		done
 	else
 		echo "invalid job type '$2'"
 		echo "  should be: new, running, done, archive"
+		echo "         or: done_err, archive_err"
 	fi
 	exit
 fi
@@ -263,17 +274,38 @@ fi
 
 
 if [[ $1 = "trash" ]]; then
-	ssh $server_name "cd $server_dir; ./jobs.sh trashServer"
+	ssh $server_name "cd $server_dir; ./jobs.sh trashServer $2"
 	exit
 fi
 
 if [[ $1 = "trashServer" ]]; then
-	count_jobs=$(ls $jobs_dir_new | wc -l)
-	if [[ $count_jobs > 0 ]]; then
-		rm $jobs_dir_new/*
-		echo "trashed $count_jobs new jobs"
+	if [[ $2 = "new" ]]; then
+		count_jobs=$(ls $jobs_dir_new | wc -l)
+		if [[ $count_jobs > 0 ]]; then
+			rm $jobs_dir_new/*
+			echo "trashed $count_jobs new jobs"
+		else
+			echo "no new jobs to trash"
+		fi
+	elif [[ $2 = "done" ]]; then
+		count_jobs=$(ls $jobs_dir_done | wc -l)
+		if [[ $count_jobs > 0 ]]; then
+			rm $jobs_dir_done/*
+			echo "trashed $count_jobs done jobs"
+		else
+			echo "no new jobs to trash"
+		fi
+	elif [[ $2 = "archive" ]]; then
+		count_jobs=$(ls $jobs_dir_archive | wc -l)
+		if [[ $count_jobs > 0 ]]; then
+			rm $jobs_dir_archive/*
+			echo "trashed $count_jobs archived jobs"
+		else
+			echo "no new jobs to trash"
+		fi
 	else
-		echo "no new jobs to trash"
+		echo "invalid job type '$2' for trashing"
+		echo "  should be: new, done, archive"
 	fi
 	exit
 fi
