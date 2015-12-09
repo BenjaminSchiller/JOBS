@@ -11,7 +11,8 @@ if [[ $1 = "deploy" ]]; then
 		if [[ ! -d $server_dir/$jobs_dir_stashed ]]; then mkdir -p $server_dir/$jobs_dir_stashed; fi; \
 		if [[ ! -d $server_dir/$jobs_dir_running ]]; then mkdir -p $server_dir/$jobs_dir_running; fi; \
 		if [[ ! -d $server_dir/$jobs_dir_done ]]; then mkdir -p $server_dir/$jobs_dir_done; fi; \
-		if [[ ! -d $server_dir/$jobs_dir_archive ]]; then mkdir -p $server_dir/$jobs_dir_archive; fi"
+		if [[ ! -d $server_dir/$jobs_dir_archive ]]; then mkdir -p $server_dir/$jobs_dir_archive; fi; \
+		if [[ ! -d $server_dir/$jobs_dir_processors ]]; then mkdir -p $server_dir/$jobs_dir_processors; fi"
 	rsync -auvzl jobs.{cfg,sh} $server_name:$server_dir/
 	echo "done"
 	exit
@@ -180,14 +181,14 @@ if [[ $1 = "listServer" ]]; then
 		for err in $(ls $jobs_dir_done | grep $extension_err); do
 			job="${err/$extension_err/$extension_job}"
 			echo "$job -> $(cat $jobs_dir_done/$job)"
-			cat "$jobs_dir_done/$err"
+			tail "$jobs_dir_done/$err"
 			echo ""
 		done
 	elif [[ $2 = "archive_err" ]]; then
 		for err in $(ls $jobs_dir_archive | grep $extension_err); do
 			job="${err/$extension_err/$extension_job}"
 			echo "$job -> $(cat $jobs_dir_archive/$job)"
-			cat "$jobs_dir_archive/$err"
+			tail "$jobs_dir_archive/$err"
 			echo ""
 		done
 	else
@@ -343,15 +344,37 @@ if [[ $1 = "executeServer" ]]; then
 		exit 1
 	fi
 
-	echo "$(date) - EXECUTING job $id ($(cat $job_new))" >> $main_log
+	processor="none"
+	for p in $(seq $processors_start $processors_end); do
+		if [[ ! -f $jobs_dir_processors/$p ]]; then
+			processor="$p"
+			break
+		fi
+	done
+
+	# exit if no processor available
+	if [[ "$processor" = "none" ]]; then
+		echo "no available processor found between $processors_start and $processors_end"
+		exit 1
+	fi
+
+	# assign processor
+	echo "$id" > ${jobs_dir_processors}/${processor}
+	echo "assigned p: ${jobs_dir_processors}/${processor}" >> $main_log
+
+	echo "$(date) - EXECUTING job $id on processor $processor ($(cat $job_new))" >> $main_log
 	mv $job_new $job_running
 
-	bash $job_running 1> $log_running 2> $err_running
+	taskset -c $processor bash $job_running 1> $log_running 2> $err_running
 
 	mv $job_running $job_done
 	mv $log_running $log_done
 	mv $err_running $err_done
 	if [[ $(cat $err_done | wc -l) -eq "0" ]]; then rm $err_done; fi
+
+	# release processor
+	echo "removing ${jobs_dir_processors}/${processor}" >> $main_log
+	rm ${jobs_dir_processors}/${processor}
 
 	echo "$(date) - DONE with job $id" >> $main_log
 	exit
