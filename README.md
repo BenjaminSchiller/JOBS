@@ -1,13 +1,16 @@
 # JOBS
 
 JOBS provides a single of bash script (and a config file) that can be used to quickly schedule jobs on any machine that supplies a bash shell.
+In addition, it is required that [taskset](http://linux.die.net/man/1/taskset) is installed on the server.
 
 JOBS executes all created jobs in a FIFO order and guarantees that only the configured number of jobs are executed simultaneously.
+In addition, each process is assigned to a separate processor (single-threaded execution is assumed) with *taskset*.
 Such a scheduling mechanism is required / helpful in case:
 
 1. multiple processes should be executed with different runtimes (so starting them sequentially does not make sense)
 2. only a limited number of processes should be started on the target machine (in order to not overload the machine and to ensure comparability of runtimes)
 3. the maximum nunber of available / assigned processes should actually be used at all times to exploit all resources
+4. each process should be assigned to a single processor to compare single-threaded runtimes.
 
 
 
@@ -64,6 +67,7 @@ The respective files are then moved from one directory to the next as the state 
 
 In the configuration file, names of directories and file extensions as well as the relevant server information are specified.
 Most importantly, the number of jobs that JOBS should execute concurrently is specified.
+In addition, the indexes of the processors to be used must be specified.
 
 	####################################################
 	### hostname and directory of server running JOBS
@@ -76,7 +80,14 @@ Most importantly, the number of jobs that JOBS should execute concurrently is sp
 	### maximum number of concurrently executed jobs
 	####################################################
 	concurrent_jobs="10"
-
+	
+	####################################################
+	### processors to use
+	### index of the first processor is 0
+	####################################################
+	processors_start="2"
+	processors_end="11"
+	
 	####################################################
 	### directory names for the different job states
 	### directories without last '/'
