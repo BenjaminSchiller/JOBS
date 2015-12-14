@@ -92,11 +92,12 @@ In addition, the indexes of the processors to be used must be specified.
 	### directory names for the different job states
 	### directories without last '/'
 	####################################################
-	jobs_dir_new="jobs.new"
-	jobs_dir_stashed="jobs.stashed"
-	jobs_dir_running="jobs.running"
-	jobs_dir_done="jobs.done"
-	jobs_dir_archive="jobs.archive"
+	jobs_dir_new="jobs/new"
+	jobs_dir_stashed="jobs/stashed"
+	jobs_dir_running="jobs/running"
+	jobs_dir_done="jobs/done"
+	jobs_dir_archive="jobs/archive"
+	jobs_dir_processors="jobs/processors"
 
 	####################################################
 	### file extensions for jobs and log/error files
