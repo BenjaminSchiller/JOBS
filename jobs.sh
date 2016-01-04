@@ -35,7 +35,7 @@ if [[ $1 = "statusServer" ]]; then
 	count_archive=$(ls $jobs_dir_archive | grep $extension_job | wc -l)
 	count_archive_failed=$(ls $jobs_dir_archive | grep $extension_err | wc -l)
 	echo "new:     $count_new ($count_stashed)"
-	echo "running: $count_running / $concurrent_jobs"
+	echo "running: $count_running / $concurrent_jobs [$processors_start, $processors_end]"
 	echo "done:    $count_done ($count_done_failed)"
 	echo "archive: $count_archive ($count_archive_failed)"
 	exit
