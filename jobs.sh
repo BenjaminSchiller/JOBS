@@ -165,6 +165,10 @@ if [[ $1 = "listServer" ]]; then
 		for job in $(ls $jobs_dir_new | grep $extension_job); do
 			echo "$job -> $(cat $jobs_dir_new/$job)"
 		done
+	elif [[ $2 = "stashed" ]]; then
+		for job in $(ls $jobs_dir_stashed | grep $extension_job); do
+			echo "$job -> $(cat $jobs_dir_stashed/$job)"
+		done
 	elif [[ $2 = "running" ]]; then
 		for job in $(ls $jobs_dir_running | grep $extension_job); do
 			echo "$job -> $(cat $jobs_dir_running/$job)"
@@ -193,7 +197,7 @@ if [[ $1 = "listServer" ]]; then
 		done
 	else
 		echo "invalid job type '$2'"
-		echo "  should be: new, running, done, archive"
+		echo "  should be: new, stashed, running, done, archive"
 		echo "         or: done_err, archive_err"
 	fi
 	exit
