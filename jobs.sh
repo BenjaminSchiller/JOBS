@@ -369,7 +369,10 @@ if [[ $1 = "executeServer" ]]; then
 	echo "$(date) - EXECUTING job $id on processor $processor ($(cat $job_new))" >> $main_log
 	mv $job_new $job_running
 
-	taskset -c $processor bash $job_running 1> $log_running 2> $err_running
+	echo "JOBS-start: $(date +%s%N) $(date)" > $log_running
+	taskset -c $processor bash $job_running 1>> $log_running 2> $err_running
+	echo "" > $log_running
+	echo "JOBS-end: $(date +%s%N) $(date)" >> $log_running
 
 	mv $job_running $job_done
 	mv $log_running $log_done
