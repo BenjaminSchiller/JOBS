@@ -371,7 +371,7 @@ if [[ $1 = "executeServer" ]]; then
 
 	echo "JOBS-start: $(date +%s%N) $(date)" > $log_running
 	taskset -c $processor bash $job_running 1>> $log_running 2> $err_running
-	echo "" > $log_running
+	echo "" >> $log_running
 	echo "JOBS-end: $(date +%s%N) $(date)" >> $log_running
 
 	mv $job_running $job_done
