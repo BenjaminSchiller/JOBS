@@ -275,17 +275,17 @@ fi
 
 
 
-if [[ $1 = "batchCreate" ]]; then
+if [[ $1 = "bulkCreate" ]]; then
 	if [[ ! -f $2 ]]; then
-		echo "batch file $2 does not exists"
+		echo "bulk file $2 does not exists"
 		exit
 	fi
 	rsync -auzl $2 ${server_name}:${server_dir}/
-	ssh $server_name "cd $server_dir; ./jobs.sh batchCreateServer '$2'"
+	ssh $server_name "cd $server_dir; ./jobs.sh bulkCreateServer '$2'"
 	exit
 fi
 
-if [[ $1 = "batchCreateServer" ]]; then
+if [[ $1 = "bulkCreateServer" ]]; then
 	while IFS='' read -r line || [[ -n "$line" ]]; do
 		id=$(date +%s%N)
 		while [[ $id = $lastId ]]; do id=$(date +%s%N); done
@@ -448,15 +448,15 @@ fi
 
 
 if [[ $1 = "help" ]] || [[ $1 = "--help" ]] || [[ $1 = "h" ]] || [[ $1 = "--h" ]]; then
-	if [[ $2 = "deploy" ]] || [[ $2 = "create" ]] || [[ $2 = "batchCreate" ]] || [[ $2 = "stash" ]] || [[ $2 = "unstash" ]] || [[ $2 = "archive" ]] || [[ $2 = "trash" ]] || [[ $2 = "start" ]] || [[ $2 = "execute" ]] || [[ $2 = "status" ]] || [[ $2 = "list" ]] || [[ $2 = "info" ]] || [[ $2 = "log" ]]; then
+	if [[ $2 = "deploy" ]] || [[ $2 = "create" ]] || [[ $2 = "bulkCreate" ]] || [[ $2 = "stash" ]] || [[ $2 = "unstash" ]] || [[ $2 = "archive" ]] || [[ $2 = "trash" ]] || [[ $2 = "start" ]] || [[ $2 = "execute" ]] || [[ $2 = "status" ]] || [[ $2 = "list" ]] || [[ $2 = "info" ]] || [[ $2 = "log" ]]; then
 		echo "JOBS - usage of command '$2'"
 	fi
 	if   [[ $2 = "deploy" ]]; then
 		echo "  jobs.sh deploy"
 	elif [[ $2 = "create" ]]; then
 		echo "  jobs.sh create \$task"
-	elif [[ $2 = "batchCreate" ]]; then
-		echo "  jobs.sh batchCreate \$file"
+	elif [[ $2 = "bulkCreate" ]]; then
+		echo "  jobs.sh bulkCreate \$file"
 	elif [[ $2 = "stash" ]]; then
 		echo "  jobs.sh stash"
 	elif [[ $2 = "unstash" ]]; then
@@ -486,7 +486,7 @@ if [[ $1 = "help" ]] || [[ $1 = "--help" ]] || [[ $1 = "h" ]] || [[ $1 = "--h" ]
 		echo "> > > > > > > > > > > > > > > > > > > >"
 		echo "> possible commands are:"
 		echo ">   deployment:      deploy"
-		echo ">   maintenance:     create, batchCreate, stash, unstash, archive, trash"
+		echo ">   maintenance:     create, bulkCreate, stash, unstash, archive, trash"
 		echo ">   starting jobs:   start, execute"
 		echo ">   retrieving info: status, list, info, log"
 		echo "> > > > > > > > > > > > > > > > > > > >"
