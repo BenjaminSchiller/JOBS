@@ -436,7 +436,7 @@ if [[ $1 = "startServer" ]]; then
 		id="${job%%.*}"
 		./jobs.sh executeServer $id >> $main_log &
 
-		sleep 1
+		sleep 0.01
 
 		count=$(ls $jobs_dir_running | grep $extension_job | wc -l)
 		echo "$(date) - now, $count jobs are RUNNING" >> $main_log
