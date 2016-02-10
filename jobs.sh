@@ -323,7 +323,7 @@ if [[ $1 = "trashServer" ]]; then
 			rm $jobs_dir_done/*
 			echo "trashed $count_jobs done jobs"
 		else
-			echo "no new jobs to trash"
+			echo "no done jobs to trash"
 		fi
 	elif [[ $2 = "archive" ]]; then
 		count_jobs=$(ls $jobs_dir_archive | wc -l)
@@ -331,11 +331,19 @@ if [[ $1 = "trashServer" ]]; then
 			rm $jobs_dir_archive/*
 			echo "trashed $count_jobs archived jobs"
 		else
-			echo "no new jobs to trash"
+			echo "no archived jobs to trash"
+		fi
+	elif [[ $2 = "stashed" ]]; then
+		count_jobs=$(ls $jobs_dir_stashed | wc -l)
+		if [[ $count_jobs > 0 ]]; then
+			rm $jobs_dir_stashed/*
+			echo "trashed $count_jobs stashed jobs"
+		else
+			echo "no stashed jobs to trash"
 		fi
 	else
 		echo "invalid job type '$2' for trashing"
-		echo "  should be: new, done, archive"
+		echo "  should be: new, done, archive, stashed"
 	fi
 	exit
 fi
@@ -464,7 +472,7 @@ if [[ $1 = "help" ]] || [[ $1 = "--help" ]] || [[ $1 = "h" ]] || [[ $1 = "--h" ]
 	elif [[ $2 = "archive" ]]; then
 		echo "  jobs.sh archive"
 	elif [[ $2 = "trash" ]]; then
-		echo "  jobs.sh trash"
+		echo "  jobs.sh trash (new|done|archive|stashed)"
 	elif [[ $2 = "start" ]]; then
 		echo "  jobs.sh start"
 	elif [[ $2 = "execute" ]]; then
@@ -473,7 +481,7 @@ if [[ $1 = "help" ]] || [[ $1 = "--help" ]] || [[ $1 = "h" ]] || [[ $1 = "--h" ]
 		echo "  jobs.sh status"
 	elif [[ $2 = "list" ]]; then
 		echo "  jobs.sh list \$type"
-		echo "  jobs.sh list (new|running|done|archive)"
+		echo "  jobs.sh list (new|running|done|done_err|archive|archive_err|stashed)"
 	elif [[ $2 = "info" ]]; then
 		echo "  jobs.sh list \$type"
 		echo "  jobs.sh list (new|running|done|archive)"
