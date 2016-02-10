@@ -161,7 +161,7 @@ This command can also be used to update, e.g., the config file.
 
 	> jobs.sh create $task
 
-The *create* command created a *new* job as specified by the task parameter.
+The *create* command creates a *new* job as specified by the task parameter.
 Creating a job means to simply determine its id (as the current timestamp in nanoseconds) and create a file containing the task in the directory there new jobs are stored.
 
 	> ./jobs.sh create ./myTask.sh
@@ -171,6 +171,19 @@ Make sure to properly quote composite commands so that they can be processed cor
 
 	> ./jobs.sh create 'cd myDir; ./myTask.sh'
 	created job '1423911119834276775' --> cd myDir; ./myTask.sh
+
+
+### Maintenance: bulkCreate
+
+	> jobs.sh bulkCreate $filename
+
+The *bulkCreate* command creates multiple *new* jobs, given as a list in a file (specified by the parameter `$filename`).
+
+This command should be used in case many jobs should be created at once.
+The execution of the *create* command invokes a separate ssh connection for each job which can take a very long time, e.g., when creating thousands of jobs.
+
+This speedup is achieved by copying the specified file to the server and then processing it there.
+Each line is assumed to be a new task and the server-side job creation is called for that.
 
 
 ### Maintenance: stash
@@ -233,6 +246,11 @@ An example of a crontab entry for starting it every minute would lokk like this:
 	* * * * * cd ~/theJobsDir; ./jobs.sh startServer
 
 Similar to the *execute* command, it can be executed from the client (*start*) but starting a round from the server is commonly the way to go (*startServer*).
+
+In case jobs taks only a couple of seconds, it is not sensible to start new ones using cron as this is only initiated every minute.
+In this case, we recommend to use an infinite loop in a screen and execute something like ths following example in the respective jobs dir:
+
+	while [[ true ]]; do date; ./jobs.sh startServer; ./jobs.sh statusServer; sleep 5; done
 
 
 ### Job Starting: execute
