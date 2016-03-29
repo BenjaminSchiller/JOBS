@@ -164,6 +164,7 @@ if [[ $1 = "listServer" ]]; then
 	if [[ $2 = "new" ]]; then
 		for job in $(ls $jobs_dir_new | grep $extension_job); do
 			echo "$job -> $(cat $jobs_dir_new/$job)"
+			echo "--> $(cat $jobs_dir_new/$job | wc -l | xargs) line"
 		done
 	elif [[ $2 = "stashed" ]]; then
 		for job in $(ls $jobs_dir_stashed | grep $extension_job); do
@@ -267,7 +268,7 @@ fi
 
 if [[ $1 = "createServer" ]]; then
 	id=$(date +%s%N)
-	echo "${@:2}" > ${jobs_dir_new}/$id${extension_job}
+	printf "${@:2}\n" > ${jobs_dir_new}/$id${extension_job}
 	echo "created job '$id' --> ${@:2}"
 	exit
 fi
@@ -290,7 +291,7 @@ if [[ $1 = "bulkCreateServer" ]]; then
 		id=$(date +%s%N)
 		while [[ $id = $lastId ]]; do id=$(date +%s%N); done
 		if [[ $line = "" ]]; then continue; fi
-		echo $line > ${jobs_dir_new}/$id${extension_job}
+		printf "$line\n" > ${jobs_dir_new}/$id${extension_job}
 		echo "created job '$id' --> $line"
 		lastId=$id
 	done < $2
@@ -352,7 +353,6 @@ fi
 
 
 
-
 if [[ $1 = "execute" ]]; then
 	ssh $server_name "cd $server_dir; ./jobs.sh executeServer $2"
 	exit
@@ -381,42 +381,129 @@ if [[ $1 = "executeServer" ]]; then
 		exit 1
 	fi
 
-	processor="none"
+	processors_required=$(cat $job_new | wc -l)
+	echo "require $processors_required processors"
+	free_processors=()
 	for p in $(seq $processors_start $processors_end); do
 		if [[ ! -f $jobs_dir_processors/$p ]]; then
-			processor="$p"
-			break
+			free_processors[${#free_processors[@]}]=$p
+			if [[ ${#free_processors[@]} == $processors_required ]]; then
+				echo "found free processors: ${free_processors[@]}"
+				break
+			fi
 		fi
 	done
 
-	# exit if no processor available
-	if [[ "$processor" = "none" ]]; then
-		echo "no available processor found between $processors_start and $processors_end"
+	# exit if not enough processors available
+	if [[ ${#free_processors[@]} -lt $processors_required ]]; then
+		echo "not enough processors available (require $processors_required, found ${#free_processors[@]})"
 		exit 1
 	fi
 
-	# assign processor
-	echo "$id" > ${jobs_dir_processors}/${processor}
-	echo "assigned p: ${jobs_dir_processors}/${processor}" >> $main_log
+	echo "$(date) - EXECUTING job $id on processors ${free_processors[@]} (1: $(cat $job_new | head -n 1))"
+	i="1"
+	for p in ${free_processors[@]}; do
+		./jobs.sh "executeSubServer" $id $i $p &
+		i=$((i+1))
+	done
 
-	echo "$(date) - EXECUTING job $id on processor $processor ($(cat $job_new))" >> $main_log
-	mv $job_new $job_running
+	sleep 0.5
 
+	rm $job_new
+	echo "$(date) - DONE starting job $id"
+
+	exit
+
+	# processor="none"
+	# for p in $(seq $processors_start $processors_end); do
+	# 	if [[ ! -f $jobs_dir_processors/$p ]]; then
+	# 		processor="$p"
+	# 		break
+	# 	fi
+	# done
+
+	# # exit if no processor available
+	# if [[ "$processor" = "none" ]]; then
+	# 	echo "no available processor found between $processors_start and $processors_end"
+	# 	exit 1
+	# fi
+
+	# # assign processor
+	# echo "$id" > ${jobs_dir_processors}/${processor}
+	# echo "assigned p: ${jobs_dir_processors}/${processor}"
+
+	# echo "$(date) - EXECUTING job $id on processor $processor ($(cat $job_new))"
+	# mv $job_new $job_running
+
+	# echo "JOBS-start: $(date +%s%N) $(date)" > $log_running
+	# taskset -c $processor bash $job_running 1>> $log_running 2> $err_running
+	# echo "" >> $log_running
+	# echo "JOBS-end: $(date +%s%N) $(date)" >> $log_running
+
+	# mv $job_running $job_done
+	# mv $log_running $log_done
+	# mv $err_running $err_done
+	# if [[ $(cat $err_done | wc -l) -eq "0" ]]; then rm $err_done; fi
+
+	# # release processor
+	# echo "removing ${jobs_dir_processors}/${processor}"
+	# rm ${jobs_dir_processors}/${processor}
+
+	# echo "$(date) - DONE with job $id"
+	# exit
+fi
+
+if [[ $1 = "executeSubServer" ]]; then
+	if [[ $# -eq 4 ]]; then
+		id=$2
+		index=$3
+		processor=$4
+	else
+		echo "parameters taskID, index, and processorID expected"
+		exit 1
+	fi
+
+	job_main=$jobs_dir_new/${id}${extension_job}
+
+	processor_file=${jobs_dir_processors}/${processor}
+
+	job_running=${jobs_dir_running}/${id}.${index}${extension_job}
+	log_running=${jobs_dir_running}/${id}.${index}${extension_log}
+	err_running=${jobs_dir_running}/${id}.${index}${extension_err}
+
+	job_done=${jobs_dir_done}/${id}.${index}${extension_job}
+	log_done=${jobs_dir_done}/${id}.${index}${extension_log}
+	err_done=${jobs_dir_done}/${id}.${index}${extension_err}
+
+	job=$(cat $job_main | head -n $index | tail -n 1)
+
+	echo "$(date) - EXECUTING $id.$index on processor $processor ($job)"
+
+	# reserve processor
+	echo "$id.$index" > $processor_file
+
+	# write job to running
+	echo $job > $job_running
+
+	# executing actual job
 	echo "JOBS-start: $(date +%s%N) $(date)" > $log_running
 	taskset -c $processor bash $job_running 1>> $log_running 2> $err_running
 	echo "" >> $log_running
 	echo "JOBS-end: $(date +%s%N) $(date)" >> $log_running
 
+	# moving job and log file to done
 	mv $job_running $job_done
 	mv $log_running $log_done
+	
+	# moving err file to done (deleting it in case it is empty)
 	mv $err_running $err_done
 	if [[ $(cat $err_done | wc -l) -eq "0" ]]; then rm $err_done; fi
 
 	# release processor
-	echo "removing ${jobs_dir_processors}/${processor}" >> $main_log
+	echo "removing ${jobs_dir_processors}/${processor}"
 	rm ${jobs_dir_processors}/${processor}
 
-	echo "$(date) - DONE with job $id" >> $main_log
+	echo "$(date) - DONE with job $id.$index"
 	exit
 fi
 
@@ -431,23 +518,34 @@ fi
 
 if [[ $1 = "startServer" ]]; then
 	count=$(ls $jobs_dir_running | grep $extension_job | wc -l)
-	echo "$(date) - $count jobs are RUNNING" >> $main_log
+	echo "$(date) - $count jobs are RUNNING"
 	count=$(ls $jobs_dir_new | grep $extension_job | wc -l)
-	echo "$(date) - $count jobs are NEW" >> $main_log
+	echo "$(date) - $count jobs are NEW"
 
 	for job in $(ls -tr $jobs_dir_new | grep $extension_job); do
 		count=$(ls $jobs_dir_running | grep $extension_job | wc -l)
 		if [[ $count -ge $concurrent_jobs ]]; then
-			echo "$(date) - already $count jobs running..." >> $main_log
+			echo "$(date) - already $count jobs running..."
+			break
+		fi
+		processors_free=$((concurrent_jobs - count))
+		processors_required=$(cat $jobs_dir_new/$job | wc -l)
+		if [[ $processors_free -lt $processors_required ]]; then
+			echo "$(date) - $processors_required processors for next job required, only $processors_free free"
 			break
 		fi
 		id="${job%%.*}"
-		./jobs.sh executeServer $id >> $main_log &
 
-		sleep 0.01
+		echo "starting $id"
+		echo "free: $((concurrent_jobs - count))"
+		echo "required: $processors_required"
+
+		./jobs.sh executeServer $id &
+
+		sleep 1
 
 		count=$(ls $jobs_dir_running | grep $extension_job | wc -l)
-		echo "$(date) - now, $count jobs are RUNNING" >> $main_log
+		echo "$(date) - now, $count jobs are RUNNING"
 	done
 	exit
 fi
