@@ -3,6 +3,13 @@
 source jobs.cfg
 
 
+if [[ -z "$processors_list" ]]; then
+	processors_list=($(seq $processors_start $processors_end))
+fi
+
+
+
+
 
 if [[ $1 = "deploy" ]]; then
 	echo "deploy to $server_name:$server_dir"
@@ -30,14 +37,17 @@ if [[ $1 = "statusServer" ]]; then
 	count_new=$(ls $jobs_dir_new | grep $extension_job | wc -l)
 	count_stashed=$(ls $jobs_dir_stashed | grep $extension_job | wc -l)
 	count_running=$(ls $jobs_dir_running | grep $extension_job | wc -l)
+	using=($(ls $jobs_dir_processors))
 	count_done=$(ls $jobs_dir_done | grep $extension_job | wc -l)
 	count_done_failed=$(ls $jobs_dir_done | grep $extension_err | wc -l)
 	count_archive=$(ls $jobs_dir_archive | grep $extension_job | wc -l)
 	count_archive_failed=$(ls $jobs_dir_archive | grep $extension_err | wc -l)
 	echo "new:     $count_new ($count_stashed)"
-	echo "running: $count_running / $concurrent_jobs [$processors_start, $processors_end]"
+	echo "running: $count_running / $concurrent_jobs (#: ${#processors_list[@]})"
 	echo "done:    $count_done ($count_done_failed)"
 	echo "archive: $count_archive ($count_archive_failed)"
+	echo "using:   [${using[@]}]"
+	echo "avail:   [${processors_list[@]}]"
 	exit
 fi
 
@@ -381,10 +391,18 @@ if [[ $1 = "executeServer" ]]; then
 		exit 1
 	fi
 
-	processors_required=$(cat $job_new | wc -l)
+	first=$(head -n 1 $job_new)
+	if [[ $first =~ ^[-+]?[0-9]+$ ]]; then
+		# use first line as number of processors
+		processors_required=$first
+	else
+		# use number of lines as number of processors
+		processors_required=$(cat $job_new | wc -l)
+	fi
+
 	echo "require $processors_required processors"
 	free_processors=()
-	for p in $(seq $processors_start $processors_end); do
+	for p in ${processors_list[@]}; do
 		if [[ ! -f $jobs_dir_processors/$p ]]; then
 			free_processors[${#free_processors[@]}]=$p
 			if [[ ${#free_processors[@]} == $processors_required ]]; then
@@ -413,44 +431,6 @@ if [[ $1 = "executeServer" ]]; then
 	echo "$(date) - DONE starting job $id"
 
 	exit
-
-	# processor="none"
-	# for p in $(seq $processors_start $processors_end); do
-	# 	if [[ ! -f $jobs_dir_processors/$p ]]; then
-	# 		processor="$p"
-	# 		break
-	# 	fi
-	# done
-
-	# # exit if no processor available
-	# if [[ "$processor" = "none" ]]; then
-	# 	echo "no available processor found between $processors_start and $processors_end"
-	# 	exit 1
-	# fi
-
-	# # assign processor
-	# echo "$id" > ${jobs_dir_processors}/${processor}
-	# echo "assigned p: ${jobs_dir_processors}/${processor}"
-
-	# echo "$(date) - EXECUTING job $id on processor $processor ($(cat $job_new))"
-	# mv $job_new $job_running
-
-	# echo "JOBS-start: $(date +%s%N) $(date)" > $log_running
-	# taskset -c $processor bash $job_running 1>> $log_running 2> $err_running
-	# echo "" >> $log_running
-	# echo "JOBS-end: $(date +%s%N) $(date)" >> $log_running
-
-	# mv $job_running $job_done
-	# mv $log_running $log_done
-	# mv $err_running $err_done
-	# if [[ $(cat $err_done | wc -l) -eq "0" ]]; then rm $err_done; fi
-
-	# # release processor
-	# echo "removing ${jobs_dir_processors}/${processor}"
-	# rm ${jobs_dir_processors}/${processor}
-
-	# echo "$(date) - DONE with job $id"
-	# exit
 fi
 
 if [[ $1 = "executeSubServer" ]]; then
